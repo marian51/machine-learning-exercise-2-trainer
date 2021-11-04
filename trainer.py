@@ -1,5 +1,4 @@
 import argparse
-import fileinput
 import sys
 
 # wywolanie 
@@ -31,68 +30,67 @@ for i in range(len(train_set)):
     train_set[i].insert(0,1)
 
 N = len(train_set)
-
 # odczytanie pliku data_in
 data_in = args['data_in'].readlines()
 
 # wyciangniecie liczby iteracji z pliku
-max_iterations = int(data_in[0][11:].rstrip()) # liczba iteracji programu
+#max_iterations = int(data_in[0][11:].rstrip()) # liczba iteracji programu
+max_iterations = int(data_in[0].split("=")[1])
+# nowe zmienne potrzebne do przerobienia algorytmu
+n = len(description_in)-1 # wymiarowosc danego wielomianu
+gradients = [0] * n # tablica na sum_1, sum_0 itp
+p_factors_prev = []
+for g in range(n):
+    p_factors_prev.append(float(description_in[g+1][1]))
 
-# zapis do pliku data_out
-with open(args['data_out'], 'w') as file:
-    text = str(200) + '\n'
-    file.write(text)
+learning_rate = 0.001
+epsilon = 0.001
 
-# wysylanie wynikow do pliku description_out.txt
-print('description out')
-
-def calculate_y(x, p): # p to tablica
+def calculate_f(x, p):
     result = 0
-    for j in range(1, len(p)):
-        result += float(x[int(p[j][0])]) * float(p[j][1])
+    for k in range(1, len(p)-1):
+        factor_p = float(p[k][1])
+        factor_p_x = int(p[k][0])
+        result += float(x[factor_p_x]) * factor_p
+    result += float(p[-1][1])
     return result
 
-p_0 = [1,1] # TODO wpisane na sztywno, trzeba pozniej zrobic dynamicznie
-p_t = [1,1]
-m=1
-b=1
+def save_description_out(results):
+    for line in results:
+        print(str(line[0]) + ' ' + str(line[1]))
 
-m_prev = 1000
-b_prev = 1000
+def save_output_txt(z):
+    # zapis do pliku data_out
+    with open(args['data_out'], 'w') as file:
+        text = str(z) + "\n"
+        file.write("iterations=" + text) 
 
-z=0
+z = 0
+stop = 0
+for i in range(max_iterations): # petla przechodzaca przez interacje # TODO warunek stopu
+    stop = 0
+    gradients = [0] * n # wyzerowanie, zeby na poczaktu kazdej iteracji bylo puste
+    for p in range(n): # petla do przechodzenia po pochodnych
+        p_factors_prev[n-p-1] = float(description_in[n-p][1])
+        for j in range (N):
+            x = train_set[j][:-1]
+            y = float(train_set[j][-1])
+            gradients[p] += (calculate_f(x, description_in) - y) * float(train_set[j][int(description_in[n-p][0])])
+        gradients[p] = gradients[p] / N
+        description_in[n-p][1] = float(description_in[n-p][1]) - (learning_rate * gradients[p])
+    
+    # warunek stopu
+    for p in range(n):
+        if(abs(float(description_in[n-p][1]) - p_factors_prev[n-p-1]) < epsilon):
+            stop = stop + 1
 
-learning_rate = 0.01
-# zalozenia
-for i in range(1000): # petla przechodzaca przez interacje # TODO warunek stopu
-    #p_t_i = []
-    #for k in range(1, len(description_in)): # petla przechodzaca po wspolczynnikach p
-    #    sum = 0
-    #    for j in range(N): # petla przechodzaca przez wszystkie punkty
-    #        sum += (calculate_y(train_set[j],description_in) - float(train_set[j][2])) * float(train_set[j][int(description_in[k][0])])
-    #    sum = sum / N
-    #    description_in[k][1] = float(description_in[k][1]) - sum
-    #    p_t_i.append(sum)
-    #print(p_t_i)
-    #p_t = [a_i - b_i for a_i, b_i in zip(p_t,p_t_i)]
-    # odjecie wektorow p
-    sum_1 = 0
-    sum_0 = 0
-    for j in range (N):
-        x = float(train_set[j][1])
-        y = float(train_set[j][2])
-        sum_0 += (m*x + b) - y
-        sum_1 += x*((m*x + b) - y)
-    sum_1 = sum_1 / N
-    sum_0 = sum_0 / N
-    if (abs(m_prev - m) < 0.001) and (abs(b_prev - b) < 0.001):
+    if (stop == n):
         break
-    m_prev = m
-    b_prev = b
-    m = m - (learning_rate * sum_1)
-    b = b - (learning_rate * sum_0)
 
-    z = z+1
+    z += 1
 
-print(m,b)
-print(z)
+
+save_description_out(description_in)
+# zapis do pliku data_out 
+save_output_txt(z)
+
