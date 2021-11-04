@@ -43,7 +43,7 @@ p_factors_prev = []
 for g in range(n):
     p_factors_prev.append(float(description_in[g+1][1]))
 
-learning_rate = 0.001
+learning_rate = 0.1
 epsilon = 0.001
 
 def calculate_f(x, p):
